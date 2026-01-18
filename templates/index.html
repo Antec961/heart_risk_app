@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Heart Attack Risk Prediction</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+    }
+
+    #drop-area {
+      border: 2px dashed #007BFF;
+      padding: 30px;
+      text-align: center;
+      margin: 30px auto;
+      width: 450px;
+      background: #fff;
+      border-radius: 10px;
+    }
+
+    #controls {
+      text-align: center;
+      margin: 20px;
+    }
+
+    button {
+      padding: 8px 14px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      background: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #6c757d;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin: 20px auto;
+      width: 80%;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background: #007BFF;
+      color: white;
+    }
+
+    tr.high {
+      background-color: #ffe5e5;
+    }
+
+    tr.low {
+      background-color: #e6f4ea;
+    }
+
+    .badge-high {
+      color: #b30000;
+      font-weight: bold;
+    }
+
+    .badge-low {
+      color: #1e7e34;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="drop-area">
+    <h3>📂 Загрузите CSV для предсказания</h3>
+    <input type="file" id="fileElem" accept=".csv" hidden>
+    <button onclick="document.getElementById('fileElem').click()">Выбрать файл</button>
+  </div>
+
+  <div id="controls" style="display:none;">
+    <button onclick="filterHighRisk()">Показать только высокий риск</button>
+    <button class="secondary" onclick="showAll()">Показать всё</button>
+    <button class="secondary" onclick="downloadCSV()">⬇ Скачать CSV</button>
+  </div>
+
+  <div id="table-container"></div>
+
+  <script>
+    let fullData = [];
+
+    document.getElementById('fileElem').addEventListener('change', e => {
+      uploadFile(e.target.files[0]);
+    });
+
+    const dropArea = document.getElementById('drop-area');
+    ['dragover', 'drop'].forEach(e =>
+      dropArea.addEventListener(e, ev => {
+        ev.preventDefault();
+        if (e === 'drop') uploadFile(ev.dataTransfer.files[0]);
+      })
+    );
+
+    function uploadFile(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      fetch("/predict", {
+        method: "POST",
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          fullData = data;
+          document.getElementById("controls").style.display = "block";
+          renderTable(data);
+        });
+    }
+
+    function renderTable(data) {
+      let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>id</th>
+          <th>prediction</th>
+          <th>probability</th>
+          <th>Риск</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+      data.forEach(row => {
+        const rowClass = row.risk === "Высокий" ? "high" : "low";
+        const badgeClass = row.risk === "Высокий" ? "badge-high" : "badge-low";
+
+        html += `
+      <tr class="${rowClass}">
+        <td>${row.id}</td>
+        <td>${row.prediction}</td>
+        <td>${row.probability}</td>
+        <td class="${badgeClass}">${row.risk}</td>
+      </tr>
+    `;
+      });
+
+      html += "</tbody></table>";
+      document.getElementById("table-container").innerHTML = html;
+    }
+
+    function filterHighRisk() {
+      renderTable(fullData.filter(r => r.risk === "Высокий"));
+    }
+
+    function showAll() {
+      renderTable(fullData);
+    }
+
+    function downloadCSV() {
+      const header = ["id", "prediction", "probability", "risk"];
+      const rows = fullData.map(r => header.map(h => r[h]).join(","));
+      const csv = [header.join(","), ...rows].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "heart_attack_predictions.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+
+</body>
+
+</html>
