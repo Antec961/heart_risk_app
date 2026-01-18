@@ -167,7 +167,7 @@
     }
 
     function downloadCSV() {
-      const header = ["id", "prediction", "probability", "risk"];
+      const header = ["id", "prediction"];
       const rows = fullData.map(r => header.map(h => r[h]).join(","));
       const csv = [header.join(","), ...rows].join("\n");
 
